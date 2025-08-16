@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   }
   // --- 🔥 End CORS setup ---
 
-  // --- GET Leaderboard ---
+    // --- GET Leaderboard ---
   if (req.method === "GET") {
     try {
       const { sessionId } = req.query;
@@ -41,13 +41,22 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "sessionId is required" });
       }
 
-      const snapshot = await db
-        .collection("matches")
-        .where("sessionId", "==", sessionId) // ✅ filter only this visitor's session
-        .orderBy("time", "desc")
-        .get();
+      let snapshot;
+      try {
+        snapshot = await db
+          .collection("matches")
+          .where("sessionId", "==", sessionId)
+          .orderBy("time", "desc")
+          .get();
+      } catch (orderErr) {
+        console.warn("⚠️ orderBy failed (likely because some docs have string times). Falling back without orderBy.");
+        snapshot = await db
+          .collection("matches")
+          .where("sessionId", "==", sessionId)
+          .get();
+      }
 
-      const leaderboard = snapshot.docs.map((doc) => {
+      let leaderboard = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -58,6 +67,9 @@ export default async function handler(req, res) {
           time: data.time?.toDate ? data.time.toDate().toLocaleString() : data.time,
         };
       });
+
+      // If no proper Firestore order, sort manually (newest first)
+      leaderboard.sort((a, b) => new Date(b.time) - new Date(a.time));
 
       return res.status(200).json(leaderboard);
     } catch (error) {
