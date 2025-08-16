@@ -83,7 +83,7 @@ export default async function handler(req, res) {
         winner,
         loser,
         sessionId, // ✅ store session
-        time: time ? time : admin.firestore.Timestamp.now(),
+        time: admin.firestore.Timestamp.now(), // always save as Timestamp
       };
 
       const newDoc = await db.collection("matches").add(matchData);
