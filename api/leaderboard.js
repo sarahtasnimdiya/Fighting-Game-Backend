@@ -1,4 +1,4 @@
-// api/leaderboard.js  (Vercel serverless function with CORS)
+// api/leaderboard.js (Vercel serverless function with CORS)
 
 import admin from "firebase-admin";
 
@@ -19,9 +19,11 @@ const db = admin.firestore();
 
 export default async function handler(req, res) {
   // --- 🔥 Add CORS headers ---
-  res.setHeader("Access-Control-Allow-Origin", "https://fighting-game-4d09a.web.app"); 
-  // if you want to allow *all* origins while testing, replace above with: "*"
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Origin", "https://fighting-game-4d09a.web.app");
+  // For debugging, you can temporarily allow all origins:
+  // res.setHeader("Access-Control-Allow-Origin", "*");
+
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   // Handle preflight (OPTIONS request)
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
         .orderBy("time", "desc")
         .get();
 
-      const leaderboard = snapshot.docs.map(doc => ({
+      const leaderboard = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
@@ -50,13 +52,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { winner, loser } = req.body;
-
-    if (!winner || !loser) {
-      return res.status(400).json({ error: "Winner and loser are required" });
-    }
-
     try {
+      const { winner, loser } = req.body;
+
+      if (!winner || !loser) {
+        return res.status(400).json({ error: "Winner and loser are required" });
+      }
+
       const matchData = {
         winner,
         loser,
