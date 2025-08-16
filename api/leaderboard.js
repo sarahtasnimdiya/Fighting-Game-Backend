@@ -32,6 +32,7 @@ export default async function handler(req, res) {
   }
   // --- 🔥 End CORS setup ---
 
+  // --- GET Leaderboard ---
   if (req.method === "GET") {
     try {
       const snapshot = await db
@@ -39,10 +40,19 @@ export default async function handler(req, res) {
         .orderBy("time", "desc")
         .get();
 
-      const leaderboard = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const leaderboard = snapshot.docs.map((doc) => {
+        const data = doc.data();
+
+        return {
+          id: doc.id,
+          player1: data.player1,
+          player2: data.player2,
+          winner: data.winner,
+          loser: data.loser,
+          // Format Firestore Timestamp OR keep string if already string
+          time: data.time?.toDate ? data.time.toDate().toLocaleString() : data.time,
+        };
+      });
 
       return res.status(200).json(leaderboard);
     } catch (error) {
@@ -51,18 +61,23 @@ export default async function handler(req, res) {
     }
   }
 
+  // --- POST Match Result ---
   if (req.method === "POST") {
     try {
-      const { winner, loser } = req.body;
+      const { winner, loser, player1, player2, time } = req.body;
 
-      if (!winner || !loser) {
-        return res.status(400).json({ error: "Winner and loser are required" });
+      if (!winner || !loser || !player1 || !player2) {
+        return res
+          .status(400)
+          .json({ error: "Winner, loser, player1, and player2 are required" });
       }
 
       const matchData = {
+        player1,
+        player2,
         winner,
         loser,
-        time: admin.firestore.Timestamp.now(),
+        time: time ? time : admin.firestore.Timestamp.now(), // allow frontend-sent string or server timestamp
       };
 
       const newDoc = await db.collection("matches").add(matchData);
@@ -74,5 +89,6 @@ export default async function handler(req, res) {
     }
   }
 
+  // --- Method not allowed ---
   return res.status(405).json({ error: "Method not allowed" });
 }
