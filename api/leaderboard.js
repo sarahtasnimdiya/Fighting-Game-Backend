@@ -1,4 +1,4 @@
-// api/leaderboard.js  (Vercel serverless function)
+// api/leaderboard.js  (Vercel serverless function with CORS)
 
 import admin from "firebase-admin";
 
@@ -18,8 +18,19 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 export default async function handler(req, res) {
+  // --- 🔥 Add CORS headers ---
+  res.setHeader("Access-Control-Allow-Origin", "https://fighting-game-4d09a.web.app"); 
+  // if you want to allow *all* origins while testing, replace above with: "*"
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Handle preflight (OPTIONS request)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  // --- 🔥 End CORS setup ---
+
   if (req.method === "GET") {
-    // Fetch leaderboard data
     try {
       const snapshot = await db
         .collection("matches")
@@ -39,7 +50,6 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    // Save new match result
     const { winner, loser } = req.body;
 
     if (!winner || !loser) {
@@ -62,6 +72,5 @@ export default async function handler(req, res) {
     }
   }
 
-  // Method not allowed
   return res.status(405).json({ error: "Method not allowed" });
 }
