@@ -1,4 +1,4 @@
-// api/leaderboard.js (Vercel serverless function with CORS + sessionId support)
+// api/leaderboard.js (Vercel serverless function with CORS)
 
 import admin from "firebase-admin";
 
@@ -20,7 +20,7 @@ const db = admin.firestore();
 export default async function handler(req, res) {
   // --- 🔥 Add CORS headers ---
   res.setHeader("Access-Control-Allow-Origin", "https://fighting-game-4d09a.web.app");
-  // For debugging, allow all origins:
+  // For debugging you can temporarily allow all origins:
   // res.setHeader("Access-Control-Allow-Origin", "*");
 
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -43,20 +43,18 @@ export default async function handler(req, res) {
 
       const snapshot = await db
         .collection("matches")
-        .where("sessionId", "==", sessionId)
+        .where("sessionId", "==", sessionId) // ✅ filter only this visitor's session
         .orderBy("time", "desc")
         .get();
 
       const leaderboard = snapshot.docs.map((doc) => {
         const data = doc.data();
-
         return {
           id: doc.id,
           player1: data.player1,
           player2: data.player2,
           winner: data.winner,
           loser: data.loser,
-          // Format Firestore Timestamp OR keep string if already string
           time: data.time?.toDate ? data.time.toDate().toLocaleString() : data.time,
         };
       });
@@ -84,8 +82,8 @@ export default async function handler(req, res) {
         player2,
         winner,
         loser,
-        sessionId, // ✅ attach sessionId
-        time: time ? time : admin.firestore.Timestamp.now(), // allow frontend-sent string or server timestamp
+        sessionId, // ✅ store session
+        time: time ? time : admin.firestore.Timestamp.now(),
       };
 
       const newDoc = await db.collection("matches").add(matchData);
