@@ -1,4 +1,4 @@
-// api/leaderboard.js (Vercel serverless function with CORS)
+// api/leaderboard.js (Vercel serverless function with CORS + sessionId support)
 
 import admin from "firebase-admin";
 
@@ -20,7 +20,7 @@ const db = admin.firestore();
 export default async function handler(req, res) {
   // --- 🔥 Add CORS headers ---
   res.setHeader("Access-Control-Allow-Origin", "https://fighting-game-4d09a.web.app");
-  // For debugging, you can temporarily allow all origins:
+  // For debugging, allow all origins:
   // res.setHeader("Access-Control-Allow-Origin", "*");
 
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -35,8 +35,15 @@ export default async function handler(req, res) {
   // --- GET Leaderboard ---
   if (req.method === "GET") {
     try {
+      const { sessionId } = req.query;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: "sessionId is required" });
+      }
+
       const snapshot = await db
         .collection("matches")
+        .where("sessionId", "==", sessionId)
         .orderBy("time", "desc")
         .get();
 
@@ -64,12 +71,12 @@ export default async function handler(req, res) {
   // --- POST Match Result ---
   if (req.method === "POST") {
     try {
-      const { winner, loser, player1, player2, time } = req.body;
+      const { winner, loser, player1, player2, time, sessionId } = req.body;
 
-      if (!winner || !loser || !player1 || !player2) {
+      if (!winner || !loser || !player1 || !player2 || !sessionId) {
         return res
           .status(400)
-          .json({ error: "Winner, loser, player1, and player2 are required" });
+          .json({ error: "Winner, loser, player1, player2, and sessionId are required" });
       }
 
       const matchData = {
@@ -77,6 +84,7 @@ export default async function handler(req, res) {
         player2,
         winner,
         loser,
+        sessionId, // ✅ attach sessionId
         time: time ? time : admin.firestore.Timestamp.now(), // allow frontend-sent string or server timestamp
       };
 
