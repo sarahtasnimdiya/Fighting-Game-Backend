@@ -98,15 +98,6 @@ export default async function handler(req, res) {
         time: admin.firestore.Timestamp.now(), // always save as Timestamp
       };
 
-      // Check if this sessionId already has a saved match
-      const existing = await db
-        .collection("matches")
-        .where("sessionId", "==", sessionId)
-        .get();
-
-      if (!existing.empty) {
-        return res.status(409).json({ error: "Match for this session already saved" });
-      }
 
       // Save new match
       const newDoc = await db.collection("matches").add(matchData);
