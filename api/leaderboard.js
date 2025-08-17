@@ -46,8 +46,9 @@ export default async function handler(req, res) {
         snapshot = await db
           .collection("matches")
           .where("sessionId", "==", sessionId)
-          .orderBy("time", "desc")
+          .orderBy("createdAt", "desc") // ✅ use createdAt for sorting
           .get();
+
       } catch (orderErr) {
         console.warn("⚠️ orderBy failed (likely because some docs have string times). Falling back without orderBy.");
         snapshot = await db
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
           player2: data.player2,
           winner: data.winner,
           loser: data.loser,
-          time: data.time?.toDate ? data.time.toDate().toLocaleString() : data.time,
+          matchTime: data.matchTime,
         };
       });
 
@@ -94,8 +95,9 @@ export default async function handler(req, res) {
         player2,
         winner,
         loser,
-        sessionId, // ✅ store session
-        time: admin.firestore.Timestamp.now(), // always save as Timestamp
+        sessionId,
+        matchTime: time, // ⏱ in-game timer value
+        createdAt: admin.firestore.Timestamp.now(), // always save as Timestamp
       };
 
 
