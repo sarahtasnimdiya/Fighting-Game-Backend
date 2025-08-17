@@ -65,12 +65,19 @@ export default async function handler(req, res) {
           player2: data.player2,
           winner: data.winner,
           loser: data.loser,
-          matchTime: data.matchTime,
+          matchTime: data.matchTime,   // ⏱ only send this to frontend
+          _createdAt: data.createdAt?.toDate?.() || null // keep for internal sort only
         };
       });
 
-      // If no proper Firestore order, sort manually (newest first)
-      leaderboard.sort((a, b) => new Date(b.time) - new Date(a.time));
+      // Fallback sort (newest first)
+      leaderboard.sort((a, b) => {
+        if (!a._createdAt || !b._createdAt) return 0;
+        return b._createdAt - a._createdAt;
+      });
+
+      // Strip out _createdAt before sending to frontend
+      leaderboard = leaderboard.map(({ _createdAt, ...rest }) => rest);
 
       return res.status(200).json(leaderboard);
     } catch (error) {
@@ -79,38 +86,37 @@ export default async function handler(req, res) {
     }
   }
 
-  // --- POST Match Result ---
-  if (req.method === "POST") {
-    try {
-      const { winner, loser, player1, player2, time, sessionId } = req.body;
+      // --- POST Match Result ---
+      if (req.method === "POST") {
+        try {
+          const { winner, loser, player1, player2, sessionId, matchTime } = req.body;
 
-      if (!winner || !loser || !player1 || !player2 || !sessionId) {
-        return res
-          .status(400)
-          .json({ error: "Winner, loser, player1, player2, and sessionId are required" });
+          if (!winner || !loser || !player1 || !player2 || !sessionId || matchTime == null) {
+            return res
+              .status(400)
+              .json({ error: "Winner, loser, player1, player2, sessionId, and matchTime are required" });
+          }
+
+          const matchData = {
+            player1,
+            player2,
+            winner,
+            loser,
+            sessionId,
+            matchTime, // ⏱ from frontend
+            createdAt: admin.firestore.Timestamp.now(), // for sorting
+          };
+
+          // Save new match
+          const newDoc = await db.collection("matches").add(matchData);
+          return res.status(201).json({ message: "Match saved", id: newDoc.id });
+
+        } catch (error) {
+          console.error("Error saving match:", error);
+          return res.status(500).json({ error: "Failed to save match" });
+        }
       }
 
-      const matchData = {
-        player1,
-        player2,
-        winner,
-        loser,
-        sessionId,
-        matchTime: time, // ⏱ in-game timer value
-        createdAt: admin.firestore.Timestamp.now(), // always save as Timestamp
-      };
-
-
-      // Save new match
-      const newDoc = await db.collection("matches").add(matchData);
-      return res.status(201).json({ message: "Match saved", id: newDoc.id });
-
-    } catch (error) {
-      console.error("Error saving match:", error);
-      return res.status(500).json({ error: "Failed to save match" });
-    }
-  }
-
-  // --- Method not allowed ---
-  return res.status(405).json({ error: "Method not allowed" });
-}
+        // --- Method not allowed ---
+        return res.status(405).json({ error: "Method not allowed" });
+      }
